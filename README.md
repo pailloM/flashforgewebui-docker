@@ -15,7 +15,7 @@ docker run -d \
   --name flashforge-webui \
   -p 3000:3000 \
   -v /path/on/host/data:/data \
-  ghcr.io/pailloM/flashforge-webui-docker:latest
+  ghcr.io/paillom/flashforge-webui-docker:latest
   
 Common runtime options:
 - Set webui port and password (overrides defaults):
@@ -31,7 +31,7 @@ docker-compose.yml (simple example):
 version: "3.8"
 services:
   flashforge-webui:
-    image: ghcr.io/pailloM/flashforge-webui-docker:latest
+    image: ghcr.io/paillom/flashforge-webui-docker:latest
     container_name: flashforge-webui
     ports:
       - "3000:3000"

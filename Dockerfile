@@ -23,7 +23,7 @@ WORKDIR /opt/flashforge
 
 # Download latest release binary via GitHub releases/latest redirect
 RUN set -eux; \
-    curl -fSL "https://github.com/${REPO}/releases/latest/download/${BIN_NAME}" -o /opt/flashforge/${BIN_NAME} || { echo "Failed to download latest binary"; exit 1; }; \
+    curl -fSL "https://github.com/pailloM/releases/latest/download/${BIN_NAME}" -o /opt/flashforge/${BIN_NAME} || { echo "Failed to download latest binary"; exit 1; }; \
     chmod +x /opt/flashforge/${BIN_NAME}
 
 RUN mkdir -p ${DATA_DIR} && chown -R root:root /opt/flashforge
