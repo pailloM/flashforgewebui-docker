@@ -8,6 +8,7 @@ ENV LANG=C.UTF-8 \
 
 RUN apk update && apk upgrade && \
     apk add --no-cache \
+      libc6-compat \
       ca-certificates \
       curl \
       bash \
