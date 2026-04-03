@@ -24,7 +24,7 @@ RUN set -eux; \
   }
 
 # install dependencies and build
-RUN npm ci
+RUN npm install
 RUN npm run build
 
 # ---- runtime ----
