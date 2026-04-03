@@ -19,7 +19,7 @@ jobs:
       workflows: write
 
     env:
-      IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/flashforge-webui
+      IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/flashforge-webui-docker
 
     steps:
       - name: Checkout
