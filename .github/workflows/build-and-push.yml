@@ -39,19 +39,21 @@ jobs:
       - name: Determine tag to publish
         id: tag
         run: |
-          # Prefer release tag when triggered by release event, otherwise use git tag or 'latest'
           if [ "${{ github.event_name }}" = "release" ]; then
-            # Use release tag name if present; if "latest" release was updated, use 'latest'
-            TAG="${{ github.event.release.tag_name || 'latest' }}"
+            TAG="${{ github.event.release.tag_name }}"
+            if [ -z "$TAG" ]; then
+              TAG="latest"
+            fi
           else
-            # On tag push, derive tag from ref
-            if [[ "${{ github.ref }}" == refs/tags/* ]]; then
-              TAG="${{ github.ref#refs/tags/ }}"
+            # On push events, extract tag from GITHUB_REF if present
+            REF="${GITHUB_REF:-}"
+            if [[ "$REF" == refs/tags/* ]]; then
+              TAG="${REF#refs/tags/}"
             else
               TAG="latest"
             fi
           fi
-          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
       - name: Build and push image
         uses: docker/build-push-action@v5
