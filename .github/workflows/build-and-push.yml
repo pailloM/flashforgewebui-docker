@@ -13,16 +13,15 @@ on:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-      id-token: write
-
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
       REPO_NAME: flashforge-webui-docker
       UPSTREAM_REPO: Parallel-7/FlashForgeWebUI
       REGISTRY: ghcr.io
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
 
     steps:
       - name: Checkout
@@ -37,24 +36,32 @@ jobs:
           echo "owner_lower=$OWNER_LOWER" >> "$GITHUB_OUTPUT"
           echo "image_name=$IMAGE_NAME" >> "$GITHUB_OUTPUT"
 
-      - name: Get latest upstream release tag
+      - name: Get latest upstream release tag (schedule only)
+        if: github.event_name == 'schedule'
         id: upstream
         run: |
           set -eux
           API="https://api.github.com/repos/${{ env.UPSTREAM_REPO }}/releases/latest"
           TAG="$(curl -sSfL $API | jq -r .tag_name)"
           if [ -z "$TAG" ] || [ "$TAG" = "null" ]; then
-            echo "No upstream release tag found; aborting."
+            echo "No upstream release tag found; setting tag=none"
             echo "tag=none" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-        env:
-          UPSTREAM_REPO: ${{ env.UPSTREAM_REPO }}
 
-      - name: Stop if no upstream release
-        if: steps.upstream.outputs.tag == 'none'
-        run: echo "No upstream release found, exiting."
+      - name: Check if image for upstream tag already exists in registry (schedule only)
+        if: github.event_name == 'schedule'
+        id: check_image
+        run: |
+          set -eux
+          IMAGE="${{ steps.owner.outputs.image_name }}:${{ steps.upstream.outputs.tag }}"
+          echo "Checking for existing image: $IMAGE"
+          if docker manifest inspect "$IMAGE" > /dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v2
@@ -63,21 +70,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Check if image for upstream tag already exists in registry
-        id: check_image
-        run: |
-          set -eux
-          IMAGE="${{ steps.owner.outputs.image_name }}:${{ steps.upstream.outputs.tag }}"
-          echo "Checking for existing image: $IMAGE"
-          if docker manifest inspect "$IMAGE" > /dev/null 2>&1; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-            echo "Image $IMAGE already exists — aborting workflow."
-            exit 0
-          else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-            echo "Image does not exist — will build and push."
-          fi
-
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
@@ -85,7 +77,11 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Build and push image
-        if: steps.check_image.outputs.exists == 'false' || steps.check_image.outputs.exists == ''
+        # If triggered by schedule: build only when upstream image doesn't exist and upstream tag found.
+        # If triggered by tag/release/dispatch: always build.
+        if: >
+          github.event_name != 'schedule' ||
+          (github.event_name == 'schedule' && steps.upstream.outputs.tag != 'none' && steps.check_image.outputs.exists == 'false')
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -93,13 +89,16 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: |
-            ${{ steps.owner.outputs.image_name }}:${{ steps.upstream.outputs.tag }}
+            ${{ steps.owner.outputs.image_name }}:${{ (github.event_name == 'schedule') && steps.upstream.outputs.tag || github.ref_name || 'latest' }}
             ${{ steps.owner.outputs.image_name }}:latest
           build-args: |
-            TAG=${{ steps.upstream.outputs.tag }}
+            TAG=${{ (github.event_name == 'schedule') && steps.upstream.outputs.tag || github.ref_name || 'latest' }}
 
       - name: Image digest
-        if: steps.check_image.outputs.exists == 'false' || steps.check_image.outputs.exists == ''
+        if: >
+          github.event_name != 'schedule' ||
+          (github.event_name == 'schedule' && steps.upstream.outputs.tag != 'none' && steps.check_image.outputs.exists == 'false')
         run: |
+          TAG="${{ (github.event_name == 'schedule') && steps.upstream.outputs.tag || github.ref_name || 'latest' }}"
           echo "Pushed images:"
-          docker manifest inspect ${{ steps.owner.outputs.image_name }}:${{ steps.upstream.outputs.tag }} || true
+          docker manifest inspect ${{ steps.owner.outputs.image_name }}:${TAG} || true
