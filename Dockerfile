@@ -14,8 +14,6 @@ RUN apt-get update && apt-get upgrade -y && \
     apt-get install -y --no-install-recommends curl ca-certificates tini && \
     rm -rf /var/lib/apt/lists/*
 
-RUN which tini
-
 WORKDIR /opt/flashforge
 
 # download latest release binary from GitHub releases
@@ -35,3 +33,6 @@ EXPOSE ${PORT}
 
 ENTRYPOINT ["/usr/bin/tini", "--", "/opt/flashforge/flashforge-webui-linux-x64.bin"]
 CMD ["--webui-port=3000","--webui-password=changeme"]
+
+HEALTHCHECK --interval=1m --timeout=5s --start-period=30s --retries=3 \
+  CMD curl -sfS "http://127.0.0.1:${PORT}/" >/dev/null || exit 1
