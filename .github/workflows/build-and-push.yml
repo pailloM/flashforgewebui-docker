@@ -82,7 +82,7 @@ jobs:
         if: >
           github.event_name != 'schedule' ||
           (github.event_name == 'schedule' && steps.upstream.outputs.tag != 'none' && steps.check_image.outputs.exists == 'false')
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: Dockerfile
